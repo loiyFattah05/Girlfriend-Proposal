@@ -407,68 +407,70 @@
    
    
    /* ==========================================================
-      SCORE ROWS
-      ========================================================== */
-   
-   .score-row {
-       display: flex;
-   
-       align-items: baseline;
-   
-       width: 100%;
-   
-       max-width: 100%;
-   
-       min-width: 0;
-   
-       gap: 6px;
-   
-       margin:
-           5px 0;
-   }
-   
-   
-   .score-name {
-       flex: 0 1 auto;
-   
-       min-width: 0;
-   
-       max-width: 72%;
-   
-       white-space: normal;
-   
-       overflow-wrap: break-word;
-   
-       word-break: normal;
-   }
-   
-   
-   .score-dots {
-       flex: 1 1 auto;
-   
-       min-width: 8px;
-   
-       overflow: hidden;
-   
-       white-space: nowrap;
-   
-       opacity: 0.72;
-   }
-   
-   
-   .score-percent {
-       flex: 0 0 auto;
-   
-       min-width: 4ch;
-   
-       text-align: right;
-   
-       white-space: nowrap;
-   
-       font-variant-numeric:
-           tabular-nums;
-   }
-   
+   SCORE ROWS
+   Keep labels + percentages on ONE line.
+   Dots automatically use whatever space is left.
+   ========================================================== */
+
+.score-row {
+    display: grid;
+
+    grid-template-columns:
+        max-content
+        minmax(0, 1fr)
+        max-content;
+
+    align-items: baseline;
+
+    width: 100%;
+    max-width: 100%;
+
+    column-gap: 6px;
+
+    margin: 5px 0;
+
+    white-space: nowrap;
+}
+
+
+.score-name {
+    min-width: 0;
+
+    white-space: nowrap;
+
+    overflow: visible;
+}
+
+
+.score-dots {
+    min-width: 0;
+
+    width: 100%;
+
+    overflow: hidden;
+
+    white-space: nowrap;
+
+    opacity: 0.72;
+
+    /*
+       Prevent the dots themselves from forcing
+       the row wider than the iPhone screen.
+    */
+
+    display: block;
+}
+
+
+.score-percent {
+    min-width: 4ch;
+
+    text-align: right;
+
+    white-space: nowrap;
+
+    font-variant-numeric: tabular-nums;
+}
    
    /* ==========================================================
       GREEN SECURITY MODE
@@ -1669,10 +1671,6 @@
        }
    
    
-       .score-name {
-           max-width: 70%;
-       }
-   
    
        .romantic-message {
            font-size: 23px;
@@ -1768,9 +1766,6 @@
        }
    
    
-       .score-name {
-           max-width: 68%;
-       }
    
    
        .romantic-message {
