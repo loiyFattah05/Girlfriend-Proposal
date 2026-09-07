@@ -1,146 +1,106 @@
-/* =========================================
-   GIRLFRIEND PROPOSAL
-   VERSION 2.3
-   IPHONE-FIRST TERMINAL EXPERIENCE
-
-   Normal mode:
-   Starts from the flower-care sequence.
-
-   Developer mode:
-   ?phase=3
-   ?phase=4
-
-   Current normal flow ends by handing off
-   into the separate phase files.
-========================================= */
+// ==========================================================
+// GIRLFRIEND PROPOSAL
+// script.js
+//
+// Shared helpers + opening experience
+// iPhone scrolling fix included
+// ==========================================================
 
 
-/* =========================================
-   DOM ELEMENTS
-========================================= */
+// ----------------------------------------------------------
+// ELEMENTS
+// ----------------------------------------------------------
 
-const terminal =
-    document.getElementById("terminal");
-
-const terminalScreen =
-    document.getElementById("terminal-screen");
+const terminal = document.getElementById("terminal");
+const terminalScreen = document.getElementById("terminal-screen");
 
 
-/* =========================================
-   EXPERIENCE SETTINGS
-========================================= */
+// ----------------------------------------------------------
+// SETTINGS
+// ----------------------------------------------------------
 
 const settings = {
-
     typingSpeed: 42,
-
     fastTypingSpeed: 27,
 
     linePause: 550,
 
     shortPause: 850,
-
     mediumPause: 1400,
-
     longPause: 2000,
 
     dontTouchDuration: 2200
-
 };
 
 
-/* =========================================
-   WAIT
-========================================= */
+// ----------------------------------------------------------
+// BASIC HELPERS
+// ----------------------------------------------------------
 
-function wait(milliseconds) {
-
-    return new Promise(resolve => {
-
-        setTimeout(
-            resolve,
-            milliseconds
-        );
-
-    });
-
+function wait(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
 }
 
 
-/* =========================================
-   AUTO-SCROLL TERMINAL
-========================================= */
+// ==========================================================
+// IPHONE-SAFE TERMINAL SCROLLING
+//
+// IMPORTANT:
+// We DO NOT use scrollIntoView() anymore.
+//
+// scrollIntoView() can make Safari move the entire viewport,
+// which causes the annoying up/down jumping.
+//
+// Now only the terminal element itself scrolls.
+// ==========================================================
 
-function scrollTerminal(
-    smooth = true
-) {
+let terminalScrollFrame = null;
 
-    const lastElement =
-        terminal.lastElementChild;
+function scrollTerminal() {
 
-
-    if (!lastElement) {
+    if (!terminal) {
         return;
     }
 
-
-    requestAnimationFrame(() => {
-
-        lastElement.scrollIntoView({
-
-            behavior:
-                smooth
-                    ? "smooth"
-                    : "auto",
-
-            block: "end"
-
-        });
-
-    });
-
-}
-
-
-/* =========================================
-   CREATE TERMINAL LINE
-========================================= */
-
-function createLine(
-    className = ""
-) {
-
-    const line =
-        document.createElement("div");
-
-
-    line.classList.add(
-        "terminal-line"
-    );
-
-
-    if (className) {
-
-        line.classList.add(
-            className
-        );
-
+    if (terminalScrollFrame) {
+        cancelAnimationFrame(terminalScrollFrame);
     }
 
+    terminalScrollFrame = requestAnimationFrame(() => {
 
-    terminal.appendChild(
-        line
-    );
+        terminal.scrollTop = terminal.scrollHeight;
 
+        terminalScrollFrame = null;
 
-    return line;
-
+    });
 }
 
 
-/* =========================================
-   TYPE TEXT LETTER BY LETTER
-========================================= */
+// ----------------------------------------------------------
+// CREATE TERMINAL LINE
+// ----------------------------------------------------------
+
+function createLine(className = "") {
+
+    const line = document.createElement("div");
+
+    line.className = "terminal-line";
+
+    if (className) {
+        line.classList.add(className);
+    }
+
+    terminal.appendChild(line);
+
+    scrollTerminal();
+
+    return line;
+}
+
+
+// ----------------------------------------------------------
+// TYPE TEXT
+// ----------------------------------------------------------
 
 async function typeText(
     text,
@@ -148,355 +108,192 @@ async function typeText(
     className = ""
 ) {
 
-    const line =
-        createLine(
-            className
-        );
+    const line = createLine(className);
 
+    const textSpan = document.createElement("span");
+    const cursor = document.createElement("span");
 
-    const cursor =
-        document.createElement("span");
+    cursor.className = "cursor";
 
+    line.appendChild(textSpan);
+    line.appendChild(cursor);
 
-    cursor.classList.add(
-        "cursor"
-    );
+    for (let i = 0; i < text.length; i++) {
 
-
-    line.appendChild(
-        cursor
-    );
-
-
-    for (
-        let i = 0;
-        i < text.length;
-        i++
-    ) {
-
-        cursor.insertAdjacentText(
-            "beforebegin",
-            text[i]
-        );
-
+        textSpan.textContent += text[i];
 
         /*
-            Scroll every few characters
-            instead of every character.
+            Only update scroll occasionally instead of
+            every single character.
 
-            This is smoother on iPhone.
+            This keeps the terminal steady on iPhone.
         */
 
         if (i % 5 === 0) {
-
-            scrollTerminal(
-                false
-            );
-
+            scrollTerminal();
         }
 
-
-        await wait(
-            speed
-        );
-
+        await wait(speed);
     }
-
 
     cursor.remove();
 
+    scrollTerminal();
 
-    scrollTerminal(
-        true
-    );
-
+    await wait(settings.linePause);
 
     return line;
-
 }
 
 
-/* =========================================
-   ADD TEXT IMMEDIATELY
-========================================= */
+// ----------------------------------------------------------
+// ADD TEXT WITHOUT TYPING
+// ----------------------------------------------------------
 
-function addText(
-    text,
-    className = ""
-) {
+function addText(text, className = "") {
 
-    const line =
-        createLine(
-            className
-        );
+    const line = createLine(className);
 
-
-    line.textContent =
-        text;
-
+    line.textContent = text;
 
     scrollTerminal();
 
+    return line;
+}
+
+
+// ----------------------------------------------------------
+// BLANK LINE
+// ----------------------------------------------------------
+
+function addSpace() {
+
+    const line = createLine("terminal-space");
+
+    line.innerHTML = "&nbsp;";
+
+    scrollTerminal();
 
     return line;
-
 }
 
 
-/* =========================================
-   ADD EMPTY SPACE
-========================================= */
-
-function addSpace(
-    height = 14
-) {
-
-    const space =
-        document.createElement("div");
-
-
-    space.style.height =
-        `${height}px`;
-
-
-    terminal.appendChild(
-        space
-    );
-
-}
-
-
-/* =========================================
-   CLEAR TERMINAL
-========================================= */
+// ----------------------------------------------------------
+// CLEAR TERMINAL
+// ----------------------------------------------------------
 
 function clearTerminal() {
 
-    terminal.innerHTML =
-        "";
+    terminal.innerHTML = "";
 
-
-    window.scrollTo({
-
-        top: 0,
-
-        behavior: "auto"
-
-    });
-
+    terminal.scrollTop = 0;
 }
 
 
-/* =========================================
-   ANIMATED LOADING BAR
+// ==========================================================
+// LOADING BAR
+// ==========================================================
 
-   Updates ONE percentage element.
+async function loadingBar(label, duration = 2500) {
 
-   Example:
+    const container = document.createElement("div");
 
-   Scanning
-   [████████████          ]
-   47%
-
-   Only 47 changes.
-========================================= */
-
-async function loadingBar(
-    label,
-    duration = 2500
-) {
-
-    const container =
-        document.createElement("div");
+    container.className = "loading-container";
 
 
-    container.classList.add(
-        "loading-container"
-    );
+    // Top row
+
+    const header = document.createElement("div");
+
+    header.className = "loading-header";
 
 
-    const labelElement =
-        document.createElement("div");
+    const labelElement = document.createElement("span");
+
+    labelElement.className = "loading-label";
+    labelElement.textContent = label;
 
 
-    labelElement.classList.add(
-        "loading-label"
-    );
+    const percentage = document.createElement("span");
+
+    percentage.className = "loading-percentage";
+    percentage.textContent = "0%";
 
 
-    labelElement.textContent =
-        label;
+    header.appendChild(labelElement);
+    header.appendChild(percentage);
 
 
-    const bar =
-        document.createElement("div");
+    // Bar
+
+    const bar = document.createElement("div");
+
+    bar.className = "loading-bar";
 
 
-    bar.classList.add(
-        "loading-bar"
-    );
+    const fill = document.createElement("div");
+
+    fill.className = "loading-fill";
+
+    bar.appendChild(fill);
 
 
-    const fill =
-        document.createElement("div");
+    container.appendChild(header);
+    container.appendChild(bar);
 
-
-    fill.classList.add(
-        "loading-fill"
-    );
-
-
-    const percentage =
-        document.createElement("div");
-
-
-    percentage.classList.add(
-        "loading-percentage"
-    );
-
-
-    percentage.textContent =
-        "0%";
-
-
-    bar.appendChild(
-        fill
-    );
-
-
-    container.appendChild(
-        labelElement
-    );
-
-
-    container.appendChild(
-        bar
-    );
-
-
-    container.appendChild(
-        percentage
-    );
-
-
-    terminal.appendChild(
-        container
-    );
-
+    terminal.appendChild(container);
 
     scrollTerminal();
 
 
-    const startTime =
-        performance.now();
+    // Animate 0 → 100%
 
+    await new Promise(resolve => {
 
-    let previousPercent =
-        -1;
+        const start = performance.now();
 
+        function update(now) {
 
-    return new Promise(resolve => {
+            const elapsed = now - start;
 
-        function update(
-            currentTime
-        ) {
+            const progress = Math.min(
+                elapsed / duration,
+                1
+            );
 
-            const elapsed =
-                currentTime -
-                startTime;
+            const value = Math.floor(
+                progress * 100
+            );
 
+            percentage.textContent = `${value}%`;
 
-            const progress =
-                Math.min(
-                    elapsed / duration,
-                    1
-                );
+            fill.style.width = `${value}%`;
 
+            if (progress < 1) {
 
-            const percent =
-                Math.floor(
-                    progress * 100
-                );
+                requestAnimationFrame(update);
 
+            } else {
 
-            if (
-                percent !==
-                previousPercent
-            ) {
-
-                previousPercent =
-                    percent;
-
-
-                percentage.textContent =
-                    `${percent}%`;
-
-
-                fill.style.width =
-                    `${percent}%`;
-
-            }
-
-
-            if (
-                percent > 0 &&
-                percent % 10 === 0
-            ) {
-
-                scrollTerminal(
-                    false
-                );
-
-            }
-
-
-            if (
-                progress < 1
-            ) {
-
-                requestAnimationFrame(
-                    update
-                );
-
-            }
-
-            else {
-
-                percentage.textContent =
-                    "100%";
-
-
-                fill.style.width =
-                    "100%";
-
+                percentage.textContent = "100%";
+                fill.style.width = "100%";
 
                 resolve();
-
             }
-
         }
 
-
-        requestAnimationFrame(
-            update
-        );
-
+        requestAnimationFrame(update);
     });
 
+    scrollTerminal();
+
+    await wait(450);
 }
 
 
-/* =========================================
-   ANIMATED SCORE
-
-   Used in Phase 4.
-
-   Example:
-
-   Chemistry ............. 0%
-
-   Only the percentage changes.
-========================================= */
+// ==========================================================
+// COMPATIBILITY SCORE
+// ==========================================================
 
 async function score(
     name,
@@ -504,1038 +301,513 @@ async function score(
     duration = 1800
 ) {
 
-    target =
-        Math.max(
-            0,
-            Math.min(
-                100,
-                target
-            )
-        );
-
-
-    const row =
-        document.createElement("div");
-
-
-    row.classList.add(
-        "score-row"
+    target = Math.max(
+        0,
+        Math.min(100, target)
     );
 
 
-    const nameElement =
-        document.createElement("span");
+    const row = document.createElement("div");
+
+    row.className = "score-row";
 
 
-    nameElement.classList.add(
-        "score-name"
-    );
+    const nameElement = document.createElement("span");
+
+    nameElement.className = "score-name";
+    nameElement.textContent = name;
 
 
-    nameElement.textContent =
-        name;
+    const dots = document.createElement("span");
+
+    dots.className = "score-dots";
+    dots.textContent =
+        "........................................";
 
 
-    const dots =
-        document.createElement("span");
+    const percentage = document.createElement("span");
+
+    percentage.className = "score-percent";
+    percentage.textContent = "0%";
 
 
-    dots.classList.add(
-        "score-dots"
-    );
+    row.appendChild(nameElement);
+    row.appendChild(dots);
+    row.appendChild(percentage);
 
-
-    const percentage =
-        document.createElement("span");
-
-
-    percentage.classList.add(
-        "score-percent"
-    );
-
-
-    percentage.textContent =
-        "0%";
-
-
-    row.appendChild(
-        nameElement
-    );
-
-
-    row.appendChild(
-        dots
-    );
-
-
-    row.appendChild(
-        percentage
-    );
-
-
-    terminal.appendChild(
-        row
-    );
-
+    terminal.appendChild(row);
 
     scrollTerminal();
 
 
-    /*
-        If the target is zero,
-        leave it at zero.
-    */
+    await new Promise(resolve => {
 
-    if (target === 0) {
+        const start = performance.now();
 
-        await wait(
-            550
-        );
+        function update(now) {
 
-        return;
+            const elapsed = now - start;
 
-    }
+            const progress = Math.min(
+                elapsed / duration,
+                1
+            );
 
+            const value = Math.floor(
+                progress * target
+            );
 
-    const startTime =
-        performance.now();
+            percentage.textContent = `${value}%`;
 
+            if (progress < 1) {
 
-    let previousValue =
-        -1;
+                requestAnimationFrame(update);
 
+            } else {
 
-    return new Promise(resolve => {
-
-        function update(
-            currentTime
-        ) {
-
-            const elapsed =
-                currentTime -
-                startTime;
-
-
-            const progress =
-                Math.min(
-                    elapsed / duration,
-                    1
-                );
-
-
-            const currentValue =
-                Math.floor(
-                    progress * target
-                );
-
-
-            if (
-                currentValue !==
-                previousValue
-            ) {
-
-                previousValue =
-                    currentValue;
-
-
-                percentage.textContent =
-                    `${currentValue}%`;
-
-            }
-
-
-            if (
-                progress < 1
-            ) {
-
-                requestAnimationFrame(
-                    update
-                );
-
-            }
-
-            else {
-
-                percentage.textContent =
-                    `${target}%`;
-
+                percentage.textContent = `${target}%`;
 
                 resolve();
-
             }
-
         }
 
-
-        requestAnimationFrame(
-            update
-        );
-
+        requestAnimationFrame(update);
     });
 
+    scrollTerminal();
+
+    await wait(450);
 }
 
 
-/* =========================================
-   WHITE FLASH
-========================================= */
+// ==========================================================
+// WHITE FLASH
+// ==========================================================
 
-async function whiteFlash() {
+async function whiteFlash(duration = 120) {
 
-    const flash =
-        document.createElement("div");
+    const flash = document.createElement("div");
 
+    flash.className = "white-flash";
 
-    flash.classList.add(
-        "white-flash"
-    );
+    document.body.appendChild(flash);
 
-
-    document.body.appendChild(
-        flash
-    );
-
-
-    await wait(
-        240
-    );
-
+    await wait(duration);
 
     flash.remove();
-
 }
 
 
-/* =========================================
-   DRAMATIC GLITCH
-========================================= */
+// ==========================================================
+// DRAMATIC GLITCH
+// ==========================================================
 
 async function dramaticGlitch() {
 
-    const overlay =
-        document.createElement("div");
+    const overlay = document.createElement("div");
+
+    overlay.className = "glitch-overlay";
+
+    document.body.appendChild(overlay);
 
 
-    overlay.classList.add(
-        "glitch-overlay"
-    );
+    terminalScreen.classList.add("heavy-glitch");
 
 
-    document.body.appendChild(
-        overlay
-    );
+    // ------------------------------------------------------
+    // RANDOM PIXEL BLOCK GENERATOR
+    // ------------------------------------------------------
+
+    function createPixels(amount = 10) {
+
+        const colors = [
+            "#ff003c",
+            "#00eaff",
+            "#ffffff",
+            "#ff00ea",
+            "#00ff66",
+            "#ffe600"
+        ];
+
+        for (let i = 0; i < amount; i++) {
+
+            const pixel =
+                document.createElement("div");
+
+            pixel.className = "glitch-pixel";
+
+            pixel.style.left =
+                `${Math.random() * 100}%`;
+
+            pixel.style.top =
+                `${Math.random() * 100}%`;
+
+            pixel.style.width =
+                `${20 + Math.random() * 120}px`;
+
+            pixel.style.height =
+                `${4 + Math.random() * 30}px`;
+
+            pixel.style.background =
+                colors[
+                    Math.floor(
+                        Math.random() *
+                        colors.length
+                    )
+                ];
+
+            pixel.style.opacity =
+                `${0.4 + Math.random() * 0.6}`;
+
+            overlay.appendChild(pixel);
+
+            setTimeout(() => {
+                pixel.remove();
+            }, 80 + Math.random() * 250);
+        }
+    }
 
 
-    /*
-        Shake and distort
-        the flower terminal.
-    */
+    // ------------------------------------------------------
+    // RANDOM GLITCH LINES
+    // ------------------------------------------------------
+
+    function createLines(amount = 6) {
+
+        for (let i = 0; i < amount; i++) {
+
+            const line =
+                document.createElement("div");
+
+            line.className = "glitch-line";
+
+            line.style.top =
+                `${Math.random() * 100}%`;
+
+            line.style.height =
+                `${2 + Math.random() * 14}px`;
+
+            line.style.transform =
+                `translateX(${
+                    -40 +
+                    Math.random() * 80
+                }px)`;
+
+            overlay.appendChild(line);
+
+            setTimeout(() => {
+                line.remove();
+            }, 80 + Math.random() * 200);
+        }
+    }
+
+
+    // ------------------------------------------------------
+    // BLACK CORRUPTION BARS
+    // ------------------------------------------------------
+
+    function createBlackBars(amount = 4) {
+
+        for (let i = 0; i < amount; i++) {
+
+            const line =
+                document.createElement("div");
+
+            line.className =
+                "glitch-black-line";
+
+            line.style.top =
+                `${Math.random() * 100}%`;
+
+            line.style.height =
+                `${5 + Math.random() * 35}px`;
+
+            overlay.appendChild(line);
+
+            setTimeout(() => {
+                line.remove();
+            }, 100 + Math.random() * 300);
+        }
+    }
+
+
+    // ------------------------------------------------------
+    // GLITCH SEQUENCE
+    // ------------------------------------------------------
+
+    createPixels(12);
+    createLines(5);
+
+    await wait(300);
+
 
     terminalScreen.classList.add(
-        "heavy-glitch"
-    );
-
-
-    terminal.classList.add(
         "glitch-skew"
     );
 
+    createPixels(18);
+    createLines(8);
 
-    const colors = [
+    await whiteFlash(90);
 
-        "#ff004c",
-        "#00ffff",
-        "#ffffff",
-        "#ff00ff",
-        "#00ff66",
-        "#3355ff",
-        "#ffff00",
-        "#ff6600"
-
-    ];
+    await wait(350);
 
 
-    const pixels = [];
-
-    const whiteLines = [];
-
-    const blackLines = [];
-
-
-    /* =====================================
-       COLOR CORRUPTION
-    ===================================== */
-
-    for (
-        let i = 0;
-        i < 85;
-        i++
-    ) {
-
-        const pixel =
-            document.createElement("div");
-
-
-        pixel.classList.add(
-            "glitch-pixel"
-        );
-
-
-        pixel.style.width =
-            `${Math.random() * 120 + 8}px`;
-
-
-        pixel.style.height =
-            `${Math.random() * 42 + 3}px`;
-
-
-        pixel.style.left =
-            `${Math.random() * 100}%`;
-
-
-        pixel.style.top =
-            `${Math.random() * 100}%`;
-
-
-        pixel.style.background =
-            colors[
-                Math.floor(
-                    Math.random() *
-                    colors.length
-                )
-            ];
-
-
-        pixel.style.opacity =
-            Math.random() * 0.8 + 0.2;
-
-
-        overlay.appendChild(
-            pixel
-        );
-
-
-        pixels.push(
-            pixel
-        );
-
-    }
-
-
-    /* =====================================
-       WHITE DISTORTION LINES
-    ===================================== */
-
-    for (
-        let i = 0;
-        i < 14;
-        i++
-    ) {
-
-        const line =
-            document.createElement("div");
-
-
-        line.classList.add(
-            "glitch-line"
-        );
-
-
-        line.style.top =
-            `${Math.random() * 100}%`;
-
-
-        line.style.height =
-            `${Math.random() * 6 + 1}px`;
-
-
-        overlay.appendChild(
-            line
-        );
-
-
-        whiteLines.push(
-            line
-        );
-
-    }
-
-
-    /* =====================================
-       BLACK SCREEN TEARS
-    ===================================== */
-
-    for (
-        let i = 0;
-        i < 8;
-        i++
-    ) {
-
-        const line =
-            document.createElement("div");
-
-
-        line.classList.add(
-            "glitch-black-line"
-        );
-
-
-        line.style.top =
-            `${Math.random() * 100}%`;
-
-
-        line.style.height =
-            `${Math.random() * 55 + 8}px`;
-
-
-        overlay.appendChild(
-            line
-        );
-
-
-        blackLines.push(
-            line
-        );
-
-    }
-
-
-    /* =====================================
-       INITIAL HIT
-    ===================================== */
-
-    await wait(
-        350
+    terminalScreen.classList.remove(
+        "glitch-skew"
     );
 
+    createBlackBars(5);
+    createPixels(25);
 
-    /* =====================================
-       RAPID CORRUPTION
-    ===================================== */
-
-    for (
-        let frame = 0;
-        frame < 28;
-        frame++
-    ) {
-
-        pixels.forEach(pixel => {
-
-            pixel.style.left =
-                `${Math.random() * 100}%`;
+    await wait(500);
 
 
-            pixel.style.top =
-                `${Math.random() * 100}%`;
+    await whiteFlash(130);
+
+    createLines(12);
+    createPixels(30);
+
+    await wait(450);
 
 
-            pixel.style.opacity =
-                Math.random() * 0.95 + 0.05;
-
-        });
-
-
-        whiteLines.forEach(line => {
-
-            line.style.top =
-                `${Math.random() * 100}%`;
-
-
-            line.style.opacity =
-                Math.random() * 0.9 + 0.1;
-
-        });
-
-
-        blackLines.forEach(line => {
-
-            line.style.top =
-                `${Math.random() * 100}%`;
-
-
-            line.style.height =
-                `${Math.random() * 70 + 5}px`;
-
-        });
-
-
-        /*
-            Large temporary glitch bursts.
-        */
-
-        if (
-            frame % 4 === 0
-        ) {
-
-            const burst =
-                document.createElement("div");
-
-
-            burst.classList.add(
-                "glitch-pixel"
-            );
-
-
-            burst.style.width =
-                `${Math.random() * 65 + 30}%`;
-
-
-            burst.style.height =
-                `${Math.random() * 25 + 6}px`;
-
-
-            burst.style.left =
-                `${Math.random() * 20}%`;
-
-
-            burst.style.top =
-                `${Math.random() * 100}%`;
-
-
-            burst.style.background =
-                colors[
-                    Math.floor(
-                        Math.random() *
-                        colors.length
-                    )
-                ];
-
-
-            overlay.appendChild(
-                burst
-            );
-
-
-            setTimeout(() => {
-
-                burst.remove();
-
-            }, 180);
-
-        }
-
-
-        await wait(
-            80
-        );
-
-    }
-
-
-    /* =====================================
-       SCREEN TEMPORARILY FAILS
-    ===================================== */
-
-    terminalScreen.style.opacity =
-        "0";
-
-
-    await wait(
-        300
+    terminalScreen.classList.add(
+        "glitch-skew"
     );
 
+    createBlackBars(7);
 
-    terminalScreen.style.opacity =
-        "1";
+    await wait(350);
 
 
-    await wait(
-        120
+    terminalScreen.classList.remove(
+        "glitch-skew"
     );
 
+    createPixels(40);
+    createLines(15);
 
-    terminalScreen.style.opacity =
-        "0";
+    await whiteFlash(80);
 
-
-    await wait(
-        180
-    );
+    await wait(450);
 
 
-    terminalScreen.style.opacity =
-        "1";
+    createBlackBars(9);
+
+    await wait(400);
 
 
-    await wait(
-        120
-    );
+    await whiteFlash(180);
+
+    await wait(250);
 
 
-    /* =====================================
-       FINAL HEAVY CORRUPTION
-    ===================================== */
+    // ------------------------------------------------------
+    // SCREEN FAILURE / BLACKOUT
+    // ------------------------------------------------------
 
-    for (
-        let frame = 0;
-        frame < 14;
-        frame++
-    ) {
+    terminalScreen.style.opacity = "0";
 
-        pixels.forEach(pixel => {
+    await wait(700);
 
-            pixel.style.width =
-                `${Math.random() * 180 + 15}px`;
-
-
-            pixel.style.height =
-                `${Math.random() * 60 + 3}px`;
-
-
-            pixel.style.left =
-                `${Math.random() * 100}%`;
-
-
-            pixel.style.top =
-                `${Math.random() * 100}%`;
-
-        });
-
-
-        blackLines.forEach(line => {
-
-            line.style.height =
-                `${Math.random() * 100 + 10}px`;
-
-
-            line.style.top =
-                `${Math.random() * 100}%`;
-
-        });
-
-
-        if (
-            frame % 3 === 0
-        ) {
-
-            const largeBlock =
-                document.createElement("div");
-
-
-            largeBlock.classList.add(
-                "glitch-pixel"
-            );
-
-
-            largeBlock.style.width =
-                `${Math.random() * 75 + 20}%`;
-
-
-            largeBlock.style.height =
-                `${Math.random() * 50 + 10}px`;
-
-
-            largeBlock.style.left =
-                `${Math.random() * 15}%`;
-
-
-            largeBlock.style.top =
-                `${Math.random() * 100}%`;
-
-
-            largeBlock.style.background =
-                colors[
-                    Math.floor(
-                        Math.random() *
-                        colors.length
-                    )
-                ];
-
-
-            overlay.appendChild(
-                largeBlock
-            );
-
-
-            setTimeout(() => {
-
-                largeBlock.remove();
-
-            }, 180);
-
-        }
-
-
-        await wait(
-            100
-        );
-
-    }
-
-
-    /* =====================================
-       STOP DISTORTION
-    ===================================== */
 
     terminalScreen.classList.remove(
         "heavy-glitch"
     );
 
-
-    terminal.classList.remove(
+    terminalScreen.classList.remove(
         "glitch-skew"
     );
-
-
-    terminalScreen.style.opacity =
-        "1";
-
 
     overlay.remove();
 
 
-    /* =====================================
-       FIRST WHITE FLASH
-    ===================================== */
-
-    await whiteFlash();
-
-
-    await wait(
-        130
-    );
-
-
-    /* =====================================
-       SECOND WHITE FLASH
-    ===================================== */
-
-    const secondFlash =
-        document.createElement("div");
-
-
-    secondFlash.classList.add(
-        "white-flash"
-    );
-
-
-    secondFlash.style.opacity =
-        "0.75";
-
-
-    document.body.appendChild(
-        secondFlash
-    );
-
-
-    await wait(
-        180
-    );
-
-
-    secondFlash.remove();
-
-
-    /* =====================================
-       BLACKOUT
-    ===================================== */
-
-    clearTerminal();
-
-
-    await wait(
-        1500
-    );
-
+    terminalScreen.style.opacity = "1";
 }
 
 
-/* =========================================
-   DON'T TOUCH SCREEN
-========================================= */
+// ==========================================================
+// DON'T TOUCH SCREEN WARNING
+// ==========================================================
 
 async function showDontTouchWarning() {
 
-    const warning =
-        createLine(
-            "dont-touch"
-        );
+    clearTerminal();
 
+    const warning =
+        document.createElement("div");
+
+    warning.className = "dont-touch";
 
     warning.textContent =
         "DON'T TOUCH SCREEN";
 
+    terminal.appendChild(warning);
+
+    scrollTerminal();
 
     await wait(
         settings.dontTouchDuration
     );
 
-
     clearTerminal();
-
-
-    await wait(
-        500
-    );
-
 }
 
 
-/* =========================================
-   NORMAL EXPERIENCE
-========================================= */
+// ==========================================================
+// MAIN EXPERIENCE
+// ==========================================================
 
 async function startExperience() {
 
-    /*
-        Small pause after Safari opens.
-    */
-
-    await wait(
-        850
-    );
+    await wait(settings.shortPause);
 
 
-    /* =====================================
-       PHASE 1
-       FLOWER CARE
-    ===================================== */
+    // ------------------------------------------------------
+    // FAKE FLOWER CARE SCREEN
+    // ------------------------------------------------------
 
     await typeText(
-        "FLOWER CARE DATABASE",
-        settings.fastTypingSpeed
+        "FLOWER CARE DATABASE"
     );
-
-
-    addSpace();
-
 
     await typeText(
         "Reading flower information..."
     );
-
-
-    await wait(
-        settings.shortPause
-    );
-
 
     await loadingBar(
         "Identifying flower",
         2500
     );
 
-
-    await wait(
-        settings.shortPause
-    );
-
-
     await typeText(
         "Flower identified."
     );
 
-
-    await wait(
-        400
-    );
-
-
     await typeText(
         "Retrieving care instructions..."
     );
-
-
-    await wait(
-        settings.shortPause
-    );
-
 
     await loadingBar(
         "Loading care information",
         2900
     );
 
-
-    await wait(
-        settings.mediumPause
-    );
-
-
-    /* =====================================
-       ERROR
-    ===================================== */
-
     await typeText(
         "Checking QR code..."
     );
 
 
-    await wait(
-        settings.mediumPause
-    );
-
+    // ------------------------------------------------------
+    // ERROR
+    // ------------------------------------------------------
 
     await typeText(
         "ERROR",
         120,
-        "big-message"
+        "error"
     );
 
-
-    await wait(
-        1100
-    );
+    await wait(1100);
 
 
-    /* =====================================
-       MAJOR GLITCH
-    ===================================== */
+    // ------------------------------------------------------
+    // GLITCH
+    // ------------------------------------------------------
 
     await dramaticGlitch();
 
 
-    /* =====================================
-       SWITCH TO GREEN SECURITY MODE
-    ===================================== */
+    // ------------------------------------------------------
+    // GREEN SECURITY MODE
+    // ------------------------------------------------------
 
     terminalScreen.classList.add(
         "security-mode"
     );
 
-
-    /* =====================================
-       WARNING
-    ===================================== */
-
     await showDontTouchWarning();
 
 
-    /* =====================================
-       PHASE 2
-       SECURITY TERMINAL
-    ===================================== */
-
     await typeText(
-        "SECURITY CHECK",
-        settings.fastTypingSpeed,
-        "big-message"
+        "SECURITY CHECK"
     );
-
-
-    addSpace();
-
 
     await typeText(
         "Something unusual was detected."
     );
 
-
-    await wait(
-        settings.shortPause
-    );
-
-
     await typeText(
         "Checking your device..."
     );
-
-
-    await wait(
-        450
-    );
-
 
     await loadingBar(
         "Scanning",
         3800
     );
 
-
-    await wait(
-        settings.mediumPause
-    );
-
-
     await typeText(
         "Scan complete."
     );
 
-
-    addSpace();
-
-
     await typeText(
-        "Unknown connection found.",
-        50,
-        "warning"
+        "Unknown connection found."
     );
-
-
-    await wait(
-        settings.longPause
-    );
-
-
-    /* =====================================
-       FIND SOURCE
-    ===================================== */
 
     await typeText(
         "Finding the source..."
     );
-
-
-    await wait(
-        600
-    );
-
 
     await loadingBar(
         "Searching",
         3500
     );
 
-
-    await wait(
-        settings.mediumPause
-    );
-
-
     await typeText(
         "Source found."
     );
 
-
-    await wait(
-        settings.longPause
-    );
-
-
-    /* =====================================
-       FIRST REVEAL
-    ===================================== */
-
     await typeText(
         "SOURCE: LOUI",
-        90,
-        "big-message"
+        settings.typingSpeed,
+        "source-reveal"
     );
 
 
-    /* =====================================
-       HAND OFF TO PHASE 3
-    ===================================== */
+    // ------------------------------------------------------
+    // PHASE 3
+    // ------------------------------------------------------
 
-    await runConnectionPhase();
+    if (
+        typeof runConnectionPhase ===
+        "function"
+    ) {
 
+        await runConnectionPhase();
+
+    } else {
+
+        console.error(
+            "runConnectionPhase() not found."
+        );
+    }
 }
 
 
-/* =========================================
-   DEVELOPER / TEST MODE
-
-   Examples:
-
-   Full experience:
-   http://127.0.0.1:5500/
-
-   Phase 3:
-   http://127.0.0.1:5500/?phase=3
-
-   Phase 4:
-   http://127.0.0.1:5500/?phase=4
-========================================= */
+// ==========================================================
+// DEVELOPMENT / TEST MODE
+//
+// Examples:
+//
+// Full experience:
+// http://127.0.0.1:5500/
+//
+// Phase 3:
+// http://127.0.0.1:5500/?phase=3
+//
+// Phase 7:
+// http://127.0.0.1:5500/?phase=7
+// ==========================================================
 
 async function startFromSelectedPhase() {
 
@@ -1544,57 +816,34 @@ async function startFromSelectedPhase() {
             window.location.search
         );
 
-
     const requestedPhase =
-        params.get(
-            "phase"
-        );
+        params.get("phase");
 
 
-    /*
-        No phase in the URL means
-        run the real experience.
-    */
+    // Normal experience
 
     if (!requestedPhase) {
 
         await startExperience();
 
         return;
-
     }
 
 
     const phase =
-        Number(
-            requestedPhase
-        );
+        Number(requestedPhase);
 
-
-    /*
-        Reset the page before starting
-        a developer shortcut.
-    */
 
     clearTerminal();
-
-
-    /*
-        Phase 3 and later occur AFTER
-        the major glitch, so developer
-        mode should already look like
-        the green security terminal.
-    */
 
     terminalScreen.classList.add(
         "security-mode"
     );
 
 
-    /* =====================================
-       PHASE 1
-       FULL EXPERIENCE
-    ===================================== */
+    // ------------------------------------------------------
+    // PHASE 1
+    // ------------------------------------------------------
 
     if (phase === 1) {
 
@@ -1602,93 +851,128 @@ async function startFromSelectedPhase() {
             "security-mode"
         );
 
-
         await startExperience();
 
         return;
-
     }
 
 
-    /* =====================================
-       PHASE 3
-       CONNECTION ANALYSIS
-    ===================================== */
+    // ------------------------------------------------------
+    // PHASE 3
+    // ------------------------------------------------------
 
     if (phase === 3) {
 
-        await runConnectionPhase();
+        if (
+            typeof runConnectionPhase ===
+            "function"
+        ) {
+
+            await runConnectionPhase();
+        }
 
         return;
-
     }
 
 
-    /* =====================================
-       PHASE 4
-       COMPATIBILITY CHECK
-    ===================================== */
+    // ------------------------------------------------------
+    // PHASE 4
+    // ------------------------------------------------------
 
     if (phase === 4) {
 
-        await runCompatibilityPhase();
+        if (
+            typeof runCompatibilityPhase ===
+            "function"
+        ) {
+
+            await runCompatibilityPhase();
+        }
 
         return;
-
     }
-    /* =====================================
-   PHASE 5
-   RELATIONSHIP REVIEW
-===================================== */
-
-if (phase === 5) {
-
-    await runRelationshipPhase();
-
-    return;
-
-}
-
-/* =====================================
-   PHASE 6
-   ROMANTIC TRANSITION
-===================================== */
-
-if (phase === 6) {
-
-    await runRomanticPhase();
-
-    return;
-
-}
-
-/* =====================================
-   PHASE 7
-   FINAL QUESTION
-===================================== */
-
-if (phase === 7) {
-
-    await runQuestionPhase();
-
-    return;
-
-}
 
 
-    /* =====================================
-       INVALID PHASE
-    ===================================== */
+    // ------------------------------------------------------
+    // PHASE 5
+    // ------------------------------------------------------
+
+    if (phase === 5) {
+
+        if (
+            typeof runRelationshipPhase ===
+            "function"
+        ) {
+
+            await runRelationshipPhase();
+        }
+
+        return;
+    }
+
+
+    // ------------------------------------------------------
+    // PHASE 6
+    // ------------------------------------------------------
+
+    if (phase === 6) {
+
+        if (
+            typeof runRomanticPhase ===
+            "function"
+        ) {
+
+            await runRomanticPhase();
+        }
+
+        return;
+    }
+
+
+    // ------------------------------------------------------
+    // PHASE 7
+    // ------------------------------------------------------
+
+    if (phase === 7) {
+
+        if (
+            typeof runQuestionPhase ===
+            "function"
+        ) {
+
+            await runQuestionPhase();
+        }
+
+        return;
+    }
+
+
+    // ------------------------------------------------------
+    // PHASE 8
+    // ------------------------------------------------------
+
+    if (phase === 8) {
+
+        if (
+            typeof runSuccessPhase ===
+            "function"
+        ) {
+
+            await runSuccessPhase();
+        }
+
+        return;
+    }
+
 
     await typeText(
         `Unknown test phase: ${phase}`
     );
-
 }
 
 
-/* =========================================
-   START
-========================================= */
+// ==========================================================
+// START
+// ==========================================================
 
 startFromSelectedPhase();
